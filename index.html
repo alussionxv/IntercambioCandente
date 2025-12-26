@@ -4,209 +4,263 @@
 <meta charset="UTF-8">
 <title>Empyre Singles</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body{
-  margin:0;
-  font-family:system-ui, sans-serif;
-  background:#000;
-  color:#fff;
-}
-header{
-  text-align:center;
-  padding:30px 10px;
-}
-h1{
-  color:#c00000;
-  letter-spacing:2px;
-  margin:0;
-}
-h2{
-  font-weight:300;
-  margin-top:5px;
-}
-.container{
-  max-width:900px;
-  margin:auto;
-  padding:10px;
-}
-.card{
-  background:#111;
-  border:1px solid #300;
-  border-radius:10px;
-  padding:15px;
-  margin-bottom:15px;
-}
-input,button,select{
-  width:100%;
-  padding:10px;
-  margin-top:8px;
-  background:#000;
-  border:1px solid #500;
-  color:#fff;
-  border-radius:6px;
-}
-button{
-  background:#700;
-  font-weight:bold;
-}
+body{margin:0;font-family:Arial;background:#000;color:#fff}
 .hidden{display:none}
-.user-card{
-  border-bottom:1px solid #300;
-  padding:10px 0;
-}
-canvas{
-  width:100%;
-  height:300px;
-}
+button,input,select{padding:10px;border-radius:6px;border:none}
+button{background:#b00020;color:#fff;cursor:pointer}
+button:hover{opacity:.9}
+header{text-align:center;padding:20px}
+h1{color:#b00020;margin:0}
+h2{font-size:14px;font-weight:normal;opacity:.8}
+
+#lock{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000}
+
+#form{max-width:320px;margin:20px auto;display:flex;flex-direction:column;gap:10px}
+
+#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;padding:20px}
+
+.card{background:#111;border:1px solid #b00020;border-radius:10px;padding:15px;position:relative}
+.card .x{position:absolute;top:6px;right:8px;color:#b00020;font-weight:bold;cursor:pointer}
+
+.admin-btn{position:fixed;bottom:10px;right:10px}
+#adminPanel{position:fixed;bottom:60px;right:10px;background:#111;border:1px solid #b00020;border-radius:10px;padding:15px;width:260px}
+#adminPanel h3{text-align:center;margin-top:0}
+.admin-close{position:absolute;top:5px;right:8px;cursor:pointer;color:#b00020}
+
+.alert{background:#b00020;padding:15px;border-radius:10px;text-align:center;margin:20px}
+
+canvas{max-width:600px;margin:30px auto}
 </style>
 </head>
 
 <body>
 
-<div id="lock" class="container">
-  <div class="card">
-    <h2>Acceso</h2>
-    <input id="accessKey" placeholder="Clave">
-    <button onclick="unlock()">Entrar</button>
-  </div>
+<!-- ACCESO -->
+<div id="lock">
+  <h3>Clave de acceso</h3>
+  <input id="accessInput" type="password">
+  <button onclick="checkAccess()">Entrar</button>
 </div>
 
-<div id="app" class="hidden">
 <header>
-  <h1>EMPYRE SINGLES</h1>
+  <h1>Empyre Singles</h1>
   <h2>Intercambio candente</h2>
 </header>
 
-<div class="container">
-
-<div class="card">
-  <h3>Tu ficha</h3>
-  <input id="user" placeholder="@usuario">
-  <input id="fetish" placeholder="Fetiche">
-  <button onclick="addUser()">Crear ficha</button>
+<!-- CREAR FICHA -->
+<div id="form">
+  <input id="userInput" placeholder="@user">
+  <input id="fetishInput" placeholder="Fetiche">
+  <button onclick="createCard()">Crear ficha</button>
 </div>
 
-<div class="card">
-  <h3>Fichas</h3>
-  <div id="users"></div>
+<!-- FICHAS -->
+<div id="cards"></div>
+
+<canvas id="chart"></canvas>
+
+<!-- ADMIN -->
+<div class="admin-btn">
+  <button onclick="openAdmin()">Administración</button>
 </div>
 
-<div class="card hidden" id="admin">
-  <h3>Administración</h3>
-  <select id="target"></select>
-  <input id="coinsEdit" placeholder="Redpoints">
-  <input id="priceEdit" placeholder="Precio fetiche (2/4/6)">
-  <button onclick="editUser()">Guardar cambios</button>
-  <button onclick="toggleCoins()">Mostrar/Ocultar monedas</button>
-  <input id="newKey" placeholder="Nueva clave acceso">
-  <button onclick="changeKey()">Cambiar clave</button>
+<div id="adminPanel" class="hidden">
+  <div class="admin-close" onclick="closeAdmin()">X</div>
+  <h3>Admin</h3>
+
+  <div id="adminLogin">
+    <input id="adminPin" placeholder="PIN">
+    <button onclick="enterAdmin()">Entrar</button>
+  </div>
+
+  <div id="adminControls" class="hidden">
+    <select id="userSelect"></select>
+    <input id="coinsEdit" type="number" placeholder="Monedas">
+    <input id="priceEdit" type="number" placeholder="Precio fetiche">
+    <button onclick="saveEdits()">Guardar</button>
+
+    <hr>
+    <button onclick="toggleCoins()">Mostrar / Ocultar monedas</button>
+    <button onclick="resetGame()">Cerrar juego (RESET)</button>
+
+    <hr>
+    <input id="newAccess" placeholder="Nueva clave acceso">
+    <button onclick="changeAccess()">Cambiar clave</button>
+  </div>
 </div>
 
-<div class="card">
-  <h3>Progreso</h3>
-  <canvas id="chart"></canvas>
+<div id="winner" class="alert hidden">
+  Ganador con 20 Redpoints.<br>
+  Toma captura y comparte con administración.
 </div>
 
-</div>
-</div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-let ACCESS_KEY = localStorage.getItem("ACCESS_KEY") || "2025";
-let ADMIN_KEY = "0204";
-let users = JSON.parse(localStorage.getItem("USERS")) || [];
-let showCoins = false;
+const firebaseConfig={
+ apiKey:"AIzaSyAFbvgQ90F3LK6bdjIV9ZrklqG7AOa_SP8",
+ authDomain:"empyre-singles-4d9e5.firebaseapp.com",
+ projectId:"empyre-singles-4d9e5"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
 
-function unlock(){
-  if(document.getElementById("accessKey").value === ACCESS_KEY){
-    document.getElementById("lock").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    render();
-  }
-}
+let admin=false;
+let coinsVisible=false;
+let accessCode="2025";
+let chart;
 
-function addUser(){
-  const u = user.value.trim();
-  const f = fetish.value.trim();
-  if(!u||!f) return;
-  users.push({u,f,coins:10,price:0,history:[10]});
-  save();
-}
-
-function render(){
-  const list = document.getElementById("users");
-  list.innerHTML="";
-  users.forEach(x=>{
-    list.innerHTML+=`
-    <div class="user-card">
-      <strong>${x.u}</strong><br>
-      Fetiche: ${x.f}<br>
-      Precio: ${x.price||"—"}<br>
-      Monedas: ${showCoins?x.coins:"??"}
-    </div>`;
-  });
-  renderAdmin();
-  drawChart();
-}
-
-function renderAdmin(){
-  const sel = document.getElementById("target");
-  sel.innerHTML="";
-  users.forEach((x,i)=>{
-    sel.innerHTML+=`<option value="${i}">${x.u}</option>`;
-  });
-}
-
-function editUser(){
-  const i = target.value;
-  if(coinsEdit.value){
-    users[i].coins=parseInt(coinsEdit.value);
-    users[i].history.push(users[i].coins);
-  }
-  if(priceEdit.value){
-    users[i].price=parseInt(priceEdit.value);
-  }
-  save();
-}
-
-function toggleCoins(){
-  showCoins=!showCoins;
-  render();
-}
-
-function changeKey(){
-  ACCESS_KEY=newKey.value;
-  localStorage.setItem("ACCESS_KEY",ACCESS_KEY);
-}
-
-function save(){
-  localStorage.setItem("USERS",JSON.stringify(users));
-  render();
-}
-
-document.addEventListener("keydown",e=>{
-  if(e.key==="0"){
-    const k=prompt("Clave admin");
-    if(k===ADMIN_KEY){
-      document.getElementById("admin").classList.toggle("hidden");
-    }
-  }
+// CONFIG GLOBAL
+db.collection("config").doc("game").onSnapshot(d=>{
+ if(d.exists){
+  const c=d.data();
+  accessCode=c.accessCode;
+  coinsVisible=c.coinsVisible;
+ }
 });
 
-function drawChart(){
-  const c=document.getElementById("chart");
-  const ctx=c.getContext("2d");
-  ctx.clearRect(0,0,c.width,c.height);
-  let sorted=[...users].sort((a,b)=>b.coins-a.coins);
-  sorted.forEach((u,i)=>{
-    ctx.beginPath();
-    u.history.forEach((v,j)=>{
-      ctx.lineTo(j*30,300-v*10);
-    });
-    ctx.strokeStyle="#c00000";
-    ctx.stroke();
+// ACCESO
+function checkAccess(){
+ if(accessInput.value===accessCode){
+  document.getElementById("lock").remove();
+ }
+}
+
+// CREAR FICHA
+function createCard(){
+ const u=userInput.value.trim();
+ const f=fetishInput.value.trim();
+ if(!u||!f)return;
+ db.collection("cards").add({user:u,fetish:f,coins:10,price:0});
+ userInput.value="";fetishInput.value="";
+}
+
+// RENDER
+db.collection("cards").onSnapshot(s=>{
+ cards.innerHTML="";
+ let data=[];
+ let winner=false;
+ s.forEach(doc=>{
+  const d=doc.data();
+  data.push(d);
+  if(d.coins>=20) winner=true;
+  const c=document.createElement("div");
+  c.className="card";
+  c.innerHTML=`
+   <div class="x" onclick="delCard('${doc.id}')">X</div>
+   <b>${d.user}</b><br>
+   ${d.fetish}<br>
+   Monedas: ${coinsVisible?d.coins:"??"}
+  `;
+  cards.appendChild(c);
+ });
+ renderChart(data);
+ document.getElementById("winner").classList.toggle("hidden",!winner);
+ populateSelect();
+});
+
+// BORRAR
+function delCard(id){
+ if(confirm("¿Borrar ficha?")){
+  db.collection("cards").doc(id).delete();
+ }
+}
+
+// ADMIN
+function openAdmin(){
+ document.getElementById("adminPanel").classList.remove("hidden");
+ admin=false;
+ adminLogin.classList.remove("hidden");
+ adminControls.classList.add("hidden");
+ adminPin.value="";
+}
+function closeAdmin(){
+ document.getElementById("adminPanel").classList.add("hidden");
+ admin=false;
+}
+function enterAdmin(){
+ if(adminPin.value==="0204"){
+  admin=true;
+  adminLogin.classList.add("hidden");
+  adminControls.classList.remove("hidden");
+ }
+}
+
+// SELECT
+function populateSelect(){
+ if(!admin)return;
+ userSelect.innerHTML="";
+ db.collection("cards").get().then(s=>{
+  s.forEach(d=>{
+   const o=document.createElement("option");
+   o.value=d.id;
+   o.textContent=d.data().user;
+   userSelect.appendChild(o);
   });
+ });
+ userSelect.onchange=()=>{
+  coinsEdit.value="";
+  priceEdit.value="";
+ };
+}
+
+// GUARDAR
+function saveEdits(){
+ if(!admin)return;
+ const id=userSelect.value;
+ db.collection("cards").doc(id).update({
+  coins:Number(coinsEdit.value),
+  price:Number(priceEdit.value)
+ });
+ coinsEdit.value="";priceEdit.value="";
+}
+
+// TOGGLE MONEDAS
+function toggleCoins(){
+ db.collection("config").doc("game").set({
+  accessCode,
+  coinsVisible:!coinsVisible
+ });
+}
+
+// RESET
+function resetGame(){
+ if(!confirm("¿Cerrar juego y borrar todo?"))return;
+ db.collection("cards").get().then(s=>{
+  s.forEach(d=>d.ref.delete());
+ });
+ db.collection("config").doc("game").set({
+  accessCode,
+  coinsVisible:false
+ });
+}
+
+// CAMBIAR CLAVE
+function changeAccess(){
+ if(newAccess.value.length===4){
+  db.collection("config").doc("game").set({
+   accessCode:newAccess.value,
+   coinsVisible
+  });
+  alert("Clave cambiada");
+  newAccess.value="";
+ }
+}
+
+// CHART
+function renderChart(data){
+ data.sort((a,b)=>b.coins-a.coins);
+ const ctx=document.getElementById("chart");
+ if(chart)chart.destroy();
+ chart=new Chart(ctx,{
+  type:"line",
+  data:{labels:data.map(d=>d.user),datasets:[{data:data.map(d=>d.coins)}]}
+ });
 }
 </script>
-
 </body>
 </html>
